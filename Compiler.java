@@ -1,19 +1,60 @@
 package vn.giakhanhvn.jassembly.filehandling;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URLDecoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 public class Compiler {
+	public Compiler(File file, String[] flags) throws FileNotFoundException, IOException {
+		this(FileLoader.bufferReader(file.toString()), flags);
+	}
+	
+	public void compile() {
+		long l = System.currentTimeMillis();
+		try {
+			this.def();
+			String path = this.interpret(l);
+			if (path == null) throw new RuntimeException();
+			String f = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+			this.out("Jar goc: " + path);
+			String decodedPath = URLDecoder.decode(f, "UTF-8");
+			File file = new File(decodedPath);
+			this.out("Vi tri moi: " + file.getPath() + "/" + this.pgrn + ".jar");
+			Files.move(Paths.get(path), Paths.get(file.getPath() + "/" + this.pgrn + ".jar"), StandardCopyOption.REPLACE_EXISTING);
+		} catch (Exception e) {
+			this.out("[!] Khong thanh cong trong viec compile! Vui long lien he developer va kiem tra lai code cua ban!");
+			this.out("Stack trace: " + e.getStackTrace()[0]);
+		}
+		this.out("Trinh bien dich chay trong " + (System.currentTimeMillis() - l) + "ms");
+	}
+	
 	private String[] src;
 	private String[] fls;
-	private String[] nod;
+	private String compiled;
 	private String pgrn;
+	private boolean cleanbuild;
+	private boolean runRightAfter;
+	protected static final String FOOTER = "}";
+	protected static final String HEADER = 
+		"public class %regx {public static void main(String[] args) throws Exception {";
+	
+	Map<String, String> dtyp = new HashMap<>();
+	private List<String> regx = new ArrayList<>();
 	static String[] instruc = {
 		"in",	// PRINT 0
 		"đặt",	// DEFINE VARIABLE 1
@@ -25,7 +66,7 @@ public class Compiler {
 		"thì", // THEN 7 
 		"khi", // WHILE 8
 		"cho",	// FOR 9
-		"sửa",	// MODIFY 10
+		"làm",	// DO 10
 		"phá_lặp",	// BREAK 11
 		"quay_lại",	// RETURN 12
 		"nhảy_qua",	// CONTINUE 13
@@ -35,14 +76,8 @@ public class Compiler {
 		"nhập",	// INPUT 17
 		"vào",	// TO 18
 	};
-	protected static final String FOOTER = "}}";
-	protected static final String HEADER = 
-		"public class %regx {public static void main(String[] args) throws Exception {";
 	
-	Map<String, String> dtyp = new HashMap<>();
-	
-	private List<String> regx = new ArrayList<>();
-	public Compiler(String[] file, String[] flags) {
+	Compiler(String[] file, String[] flags) {
 		this.src = file;
 		this.fls = flags;
 		// INT
@@ -82,33 +117,41 @@ public class Compiler {
 		this.dtyp.put("$", "var");
 	}
 	// Bat dau compile
-	public void compile() {
+	private void def() {
 		if (src[0].contains("#ten ")) 
 			pgrn = src[0].replace("#ten ", "");
 		else throw new RuntimeException();
 		this.init();
 	}
 	
-	public void init() {
+	//Khoi chay interpret
+	private void init() {
 		this.cleanFile();
 		List<String> imports = new ArrayList<>();
+		List<String> sinImports = new ArrayList<>();
 		for (int i = 0 ; i < this.regx.size(); i++) {
 			String instr = this.regx.get(i);
 			if (instr.charAt(0) != '#') continue;
 			String[] str = instr.split("\\s+");
-			this.out(str[0]);
 			if (str[0].strip().equalsIgnoreCase("#thuvien")) {
 				imports.add(instr.replace("#thuvien", "")
 					.replace("<", "").replace(">", "")
 					.replace(" ", "")
 				);
+			} else if (str[0].strip().equalsIgnoreCase("#import")) {
+				sinImports.add(instr.replace("#import", "")
+					.replace("<", "").replace(">", "")
+					.replace(" ", ""));
 			}
 		}
 		List<String[]> importedCache = new ArrayList<>();
+		for (String sin : sinImports) {
+			importedCache.add(new String[] {"import " + sin + ";", ""});
+		}
+		importedCache.add(new String[] {"import java.util.Scanner;", ""});
 		for (String i : imports) {
 			importedCache.add(this.importLibraries(i));
 		}
-		this.nod = new String[regx.size()]; 
 		StringBuilder sb = new StringBuilder();
 		for (String[] imp : importedCache) {
 			sb.append(imp[0]);
@@ -179,18 +222,15 @@ public class Compiler {
 			sb.append(imp[1]);
 		}
 		sb.append("}");
-		nod[0] = sb.toString().replace("	", "");
+		this.compiled = sb.toString().replace("	", "");
 	}
 	
 	private void out(String string) {
-		System.out.println(string);
+		System.out.println("[VIXT] "+ string);
 	}
 
 	public void deb() {
-		out("");
-		for (String s : this.nod) {
-			System.out.println(s);
-		}
+		this.out(this.compiled);
 	}
 	private void cleanFile() {
 		for (int i = 0 ; i < this.src.length ; i++) {
@@ -200,17 +240,17 @@ public class Compiler {
 			if (!src[i].isBlank()) regx.add(src[i]);
 		}
 	}
-	public String parsePrintLnFunction(String in) {
+	private String parsePrintLnFunction(String in) {
 		in = in.replaceFirst("inxd ", "");
 		return "System.out.println(" + in + ");";
 	}
 	
-	public String parsePrintFunction(String in) {
+	private String parsePrintFunction(String in) {
 		in = in.replaceFirst("in ", "");
 		return "System.out.print(" + in + ");";
 	}
 	
-	public String parseWaitFunction(String in) {
+	private String parseWaitFunction(String in) {
 		in = in.replace(Compiler.instruc[4] + " ", "");
 		in = in.replace(" ", "");
 		in = in.replace("s", "");
@@ -221,11 +261,11 @@ public class Compiler {
 		}
 	}
 	
-	public String parseNewLineFunction() {
+	private String parseNewLineFunction() {
 		return "System.out.println();";
 	}
 	
-	public String parseForEach(String in) {
+	private String parseForEach(String in) {
 		in = in.replace(Compiler.instruc[15] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
@@ -233,7 +273,7 @@ public class Compiler {
 		return "for(var " + in + ")";
 	}
 	
-	public String parseFor(String in) {
+	private String parseFor(String in) {
 		in = in.replace(Compiler.instruc[16] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
@@ -249,7 +289,7 @@ public class Compiler {
 		return "for (" + rtp + "" + in + ")";
 	}
 	
-	public String parseArrayDeclare(String in) {
+	private String parseArrayDeclare(String in) {
 		in = in.replace(Compiler.instruc[14] + " ", "");
 		String node[] = in.split("\\s+");
 		// tao_mang [1] *stn a
@@ -262,7 +302,7 @@ public class Compiler {
 		String arn = new String(node[0]).replaceAll("[\\d.]", "");
 		return rtp + arn + " " + node[2] + " = new " + rtp + node[0] + ";" ;
 	}
-	public String parseVarDeclare(String in) {
+	private String parseVarDeclare(String in) {
 		in = in.replace(Compiler.instruc[1] + " ", "");
 		String node[] = in.split("\\s+");
 		// dat *stn x la 10
@@ -307,22 +347,22 @@ public class Compiler {
 		return sb.toString();
 	}
 	
-	public String parseConditionIf(String in) {
+	private String parseConditionIf(String in) {
 		in = in.replace(Compiler.instruc[5] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
 		return "if(" + in + ")";
 	}
-	public String parseWhileLoop(String in) {
+	private String parseWhileLoop(String in) {
 		in = in.replace(Compiler.instruc[8] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
 		return "while(" + in + ")";
 	}
-	public String parseConditionElse(String in) {
+	private String parseConditionElse(String in) {
 		return "else";
 	}
-	public String parseWaitForInput(String udef, String in) {
+	private String parseWaitForInput(String udef, String in) {
 		in = in.replace(Compiler.instruc[17] + " ", "");
 		in = in.replace(Compiler.instruc[18], "=");
 		String node[] = in.split("\\s+");
@@ -330,26 +370,29 @@ public class Compiler {
 		String attachTo = "";
 		if (node[0].contains("*")) 
 			type = node[0].replace("*", "");
-		if (node[1].equalsIgnoreCase("=")) 
-			attachTo = node[2] + "=";
 		if (!this.dtyp.containsKey(type)) 
 			type = "";
 		String rtp = this.dtyp.get(type);
+		if (node[1].equalsIgnoreCase("=")) {
+			attachTo = node[2] + "=";
+			if (node[2].charAt(0) == '*') 
+			attachTo = rtp + " " + attachTo.replace("*", "");
+		}
 		if (rtp.equalsIgnoreCase("var") || rtp.equalsIgnoreCase("String")) rtp = "";
 		String nxt = rtp == "" ? "" : rtp.substring(0, 1).toUpperCase() 
 			+ rtp.replace(rtp.substring(0, 1), "");
-		return attachTo + udef + "_java_util_Scanner_nativeInterface.next" + nxt + "();";
+		return attachTo + udef + "_java_util_Scanner_nativeInterface.next" 
+			+ nxt + "();";
 	}
-	public String[] importLibraries(String libname) {
+	private String[] importLibraries(String libname) {
 		List<String> libInternal = new ArrayList<>();
 		List<String> libImports = new ArrayList<>();	
 		if (!libname.split("\\.")[1].strip().equalsIgnoreCase("lyb")) 
-			return new String[] {"import java.util.Scanner;",""};
+			return new String[] {"",""};
 		File sf = new File(libname);
 		if (!sf.exists()) 
-			return new String[] {"import java.util.Scanner;",""};
+			return new String[] {"",""};
 		String[] buffer = new String[0];
-		libImports.add("java.util.Scanner");
 		try {
 			buffer = FileLoader.bufferReader(libname);
 		} catch (IOException e) {
@@ -402,68 +445,61 @@ public class Compiler {
 		}
 		return regx.toArray(new String[] {});
 	}
-	public static final String STD_LIB = "// Standard BStray library\n"
-			+ "// @author GiaKhanhVN\n"
-			+ "// version 0.1\n"
-			+ "\n"
-			+ "$Imports(\"java.util.Arrays\",\"java.util.Random\")\n"
-			+ "\n"
-			+ "public static class %lname% {\n"
-			+ " public static final String VERSION = \"ALPHA-0.1-B0144\";"
-			+ "	public static int random(int min, int max) {\n"
-			+ "		if (min < 0) min = 0;\n"
-			+ "		if (max < 0) max = 0;\n"
-			+ "		return new Random().nextInt((max - min) + 1) + min;\n"
-			+ "	}\n"
-			+ "	static String xâu_random(int targetStringLength) {\n"
-			+ "		int leftLimit = 97;\n"
-			+ "		int rightLimit = 122;\n"
-			+ "		var random = new Random();\n"
-			+ "		var generatedString = random.ints(leftLimit, rightLimit + 1)\n"
-			+ "			.limit(targetStringLength)\n"
-			+ "			.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)\n"
-			+ "			.toString();\n"
-			+ "		return generatedString;\n"
-			+ "	} \n"
-			+ "	public static <T> void sắp_xếp(T[] t) {\n"
-			+ "		Arrays.sort(t);\n"
-			+ "	}\n"
-			+ "	public static <T> void xếp(T[] t) {\n"
-			+ "		sắp_xếp(t);\n"
-			+ "	}\n"
-			+ "	public static <T> void xáo_mảng(T[] ar) {\n"
-			+ "		xáo(ar);\n"
-			+ "	}\n"
-			+ "\n"
-			+ "	public static <T> void xáo(T[] ar) {\n"
-			+ "		Random rnd = new Random();\n"
-			+ "		for (int i = ar.length - 1; i > 0; i--) {\n"
-			+ "			int index = rnd.nextInt(i + 1);\n"
-			+ "			T a = ar[index];\n"
-			+ "			ar[index] = ar[i];\n"
-			+ "			ar[i] = a;\n"
-			+ "		}\n"
-			+ "	}\n"
-			+ "	public static double thành_stp(String st) {\n"
-			+ "		try {\n"
-			+ "			return Double.parseDouble(st);\n"
-			+ "		} catch (Exception e) {\n"
-			+ "			return -1d;\n"
-			+ "		}\n"
-			+ "	}\n"
-			+ "	public static int thành_stn(String st) {\n"
-			+ "		try {\n"
-			+ "			return Integer.parseInt(st);\n"
-			+ "		} catch (Exception e) {\n"
-			+ "			return -1;\n"
-			+ "		}\n"
-			+ "	}\n"
-			+ "	public static long thành_stnl(String st) {\n"
-			+ "		try {\n"
-			+ "			return Long.parseLong(st);\n"
-			+ "		} catch (Exception e) {\n"
-			+ "			return -1;\n"
-			+ "		}\n"
-			+ "	}\n"
-			+ "}";
+	private String interpret(long start) throws Exception {
+		UUID runtimeuuid = UUID.randomUUID();
+		File fold = new File("bins/" + runtimeuuid.toString());
+		if (!fold.exists()) fold.mkdirs();
+		this.out("Dang bien dich ma nguon...");
+		var t = this.pgrn + ".java";
+		File f = new File(fold, t);
+		if (!f.exists()) {
+			f.createNewFile();
+			FileWriter writ = new FileWriter(fold.toString() + "/" + t);
+			writ.write(this.compiled);
+			writ.close();
+			int o1 = this.runProcess("javac " + f.toString(), false);
+			if (o1 != 0) {
+				this.out("[!] Khong thanh cong trong viec bien dich ma nguon! Hay kiem tra lai code cua ban!");
+				return null;
+			}
+			this.out("Thanh cong tao file Jar!");
+			this.out("Dang build file JAR...");
+			f.delete();
+			StringBuilder classes = new StringBuilder();
+			for (File fl : fold.listFiles()) {
+				if (fl.getName().contains(".class") && fl.getName().contains(this.pgrn))
+				classes.append(fl.getName() + " ");
+			}
+			this.out("Dang tao MANIFEST cho JAR...");
+			int o = this.runProcessWithDir(fold, "jar cvfe original$_" + this.pgrn.toLowerCase() + ".jar " + this.pgrn + " " + classes);
+			if (o != 0) {
+				this.out("[!] Khong thanh cong trong viec khoi tao MANIFEST va build jar! Vui long lien he developer!");
+				return null;
+			}
+			this.out("Thanh cong tao file Jar!");
+			return fold.getPath() + "/" + "original$_" + this.pgrn.toLowerCase() + ".jar";
+		}
+		return null;
+	}
+	void printLines(String cmd, InputStream ins) throws Exception {
+		String line = null;
+		BufferedReader in = new BufferedReader(
+			new InputStreamReader(ins)
+		);
+		while ((line = in.readLine()) != null) {
+			System.out.println(cmd + line);
+		}
+	}
+	int runProcess(String command, boolean print) throws Exception {
+		Process pro = Runtime.getRuntime().exec(command);
+		if (print) this.printLines("[VIXT] ", pro.getInputStream());
+		pro.waitFor();
+		return pro.exitValue();
+	}
+	int runProcessWithDir(File dir, String command) throws Exception {
+		Process pro = Runtime.getRuntime().exec(command, null, dir);
+		this.printLines("[VIXT] ", pro.getInputStream());
+		pro.waitFor();
+		return pro.exitValue();
+	}
 }
