@@ -238,7 +238,7 @@ public class Compiler {
 			sb.append(imp[1]);
 		}
 		sb.append("}");
-		this.compiled = sb.toString().replace("	", "");
+		this.compiled = sb.toString();
 	}
 	
 	private void out(boolean serv, String string) {
@@ -259,6 +259,7 @@ public class Compiler {
 			// Xoa het comments
 			src[i] = src[i]
 				.replaceAll("(?:/\\*(?:[^*]|(?:\\*+[^*/]))*\\*+/)|(?://.*)", "");
+			src[i] = this.normalize(src[i]);
 			if (!src[i].isBlank()) regx.add(src[i]);
 		}
 	}
@@ -504,6 +505,18 @@ public class Compiler {
 			return fold.getPath() + File.separator + "original$_" + this.pgrn.toLowerCase() + ".jar";
 		}
 		return null;
+	}
+	String normalize(String s) {
+		int n = -1;
+		for (int i = 0 ; i < s.toCharArray().length; i++) {
+			if (s.toCharArray()[i] != ' ' &&
+				s.toCharArray()[i] != '	') {
+				n = i;
+				break;
+			}
+		}
+		if (n < 0) return s;
+		return s.substring(n);
 	}
 	void printLines(String cmd, InputStream ins) throws Exception {
 		String line = null;
