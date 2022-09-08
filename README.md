@@ -1,1 +1,5 @@
-# vixt-language
+# Vixt Language
+
+Đang lười...
+
+
