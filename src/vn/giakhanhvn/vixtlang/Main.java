@@ -7,12 +7,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import vn.giakhanhvn.vixtlang.compiler.Compiler;
 
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
+
 public class Main {
 	public static String VIXT_PATH = "C:\\Vixt\\";
+	public static OSType OS = OSType.WINDOWS;
 	
 	public static void main(String[] args) throws Exception {
+		long mil = System.currentTimeMillis();
 		if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
-			VIXT_PATH = "/home";
+			VIXT_PATH = "";
+			Main.OS = OSType.UNIX;
 		}
 		StringBuilder s = new StringBuilder();
 		if (args.length <= 0) {
@@ -36,9 +42,20 @@ public class Main {
 			Main.printHowTo();
 			return;
 		}
+		Signal.handle(new Signal("INT"), new SignalHandler() {
+            public void handle(Signal signal) {
+            	out("");
+            	out("Chuong trinh da bi buoc dong! Thoi gian hoat dong: " + (System.currentTimeMillis() - mil) + "ms");
+            	System.exit(0);
+            }
+        });
 		Main.createOrLoadLibs();
 		Compiler c = new Compiler(src, args);
 		c.compile();
+	}
+	public static enum OSType {
+		WINDOWS,
+		UNIX
 	}
 	public static void printHowTo() {
 		out("Cach su dung: vixt tenfile.vx <cac flags, khong co cung duoc>");
