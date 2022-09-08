@@ -37,15 +37,16 @@ public class Compiler {
 			String path = this.interpret(l);
 			if (path == null) throw new RuntimeException();
 			this.out("Jar goc: " + path);
-			this.out(true, "Vi tri JAR: " + this.source.getParent() + File.separator + this.pgrn + ".jar");
-			Files.move(Paths.get(path), Paths.get(this.source.getParent() + File.separator + this.pgrn + ".jar"), StandardCopyOption.REPLACE_EXISTING);
+			this.out(true, "Vi tri JAR: " + this.source.getAbsoluteFile().getParent() + File.separator + this.pgrn + ".jar");
+			Files.move(Paths.get(path), Paths.get(this.source.getAbsoluteFile().getParent() + File.separator + this.pgrn + ".jar"), StandardCopyOption.REPLACE_EXISTING);
 			if (this.rfl.clean) {
 				this.out(true, "Dang don dep file tam thoi...");
 				Main.deleteDir(new File(new File(path).getParent()));
 				this.out("File tam thoi trong thu muc: " + new File(path).getParent());
 			}
 			if (!this.rfl.noRun) {
-				String cmd = "java -jar \"" + this.source.getParent() + File.separator + this.pgrn + ".jar";
+				String a = Main.OS == Main.OSType.WINDOWS ? "\"" : "";
+				String cmd = "java -jar " + a + this.source.getAbsoluteFile().getParent() + File.separator + this.pgrn + ".jar" + a;
 				this.out("[DEBUG] Opening console with starting command " + cmd);
 				Console con = new Console(cmd, this);
 				con.open();
