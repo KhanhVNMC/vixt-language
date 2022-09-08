@@ -7,7 +7,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -37,10 +36,7 @@ public class Compiler {
 			this.def();
 			String path = this.interpret(l);
 			if (path == null) throw new RuntimeException();
-			String f = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
 			this.out("Jar goc: " + path);
-			String decodedPath = URLDecoder.decode(f, "UTF-8");
-			File file = new File(decodedPath).getParentFile();
 			this.out(true, "Vi tri JAR: " + this.source.getParent() + File.separator + this.pgrn + ".jar");
 			Files.move(Paths.get(path), Paths.get(this.source.getParent() + File.separator + this.pgrn + ".jar"), StandardCopyOption.REPLACE_EXISTING);
 			if (this.rfl.clean) {
@@ -472,7 +468,7 @@ public class Compiler {
 	}
 	private String interpret(long start) throws Exception {
 		UUID runtimeuuid = UUID.randomUUID();
-		String writable = "C:\\Vixt\\";
+		String writable = Main.VIXT_PATH;
 		File fold = new File(writable + "bins/" + runtimeuuid.toString());
 		if (!fold.exists()) fold.mkdirs();
 		this.out(true, "Dang bien dich ma nguon...");
