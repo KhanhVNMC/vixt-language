@@ -3,10 +3,12 @@ package vn.giakhanhvn.vixtlang.compiler;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -14,6 +16,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -68,8 +71,10 @@ public class Compiler {
 	protected static final String HEADER = 
 		"public class %regx {public static void main(String[] bienChuongTrinh) throws Exception {";
 	
-	Map<String, String> dtyp = new HashMap<>();
+	Map<String, String> dtyp = new LinkedHashMap<>();
 	private List<String> regx = new ArrayList<>();
+	
+	// TODO Instructions
 	static String[] instruc = {
 		"in",	// PRINT 0
 		"đặt",	// DEFINE VARIABLE 1
@@ -81,7 +86,7 @@ public class Compiler {
 		"thì", // THEN 7 
 		"khi", // WHILE 8
 		"cho",	// FOR 9
-		"làm",	// DO 10
+		"gọi",	// CALL 10
 		"phá_lặp",	// BREAK 11
 		"quay_lại",	// RETURN 12
 		"nhảy_qua",	// CONTINUE 13
@@ -90,12 +95,19 @@ public class Compiler {
 		"cho"	,// FOR 16
 		"nhập",	// INPUT 17
 		"vào",	// TO 18
+		"hàm", // FUNCTION 19
+		"trả", // RETURN VAR 20
+		"không_nếu", // ELSE IF 21
 	};
 	
 	Compiler(File f, String[] file, String[] flags) {
 		this.source = f;
 		this.src = file;
 		this.rfl = new CompilerFlagParsing(flags);
+		// FLOAT
+		this.dtyp.put("st", "float");
+		this.dtyp.put("sothuc", "float");
+		this.dtyp.put("float", "float");
 		// INT
 		this.dtyp.put("stn", "int");
 		this.dtyp.put("sotunhien", "int");
@@ -108,10 +120,6 @@ public class Compiler {
 		this.dtyp.put("stp", "double");
 		this.dtyp.put("sothapphan", "double");
 		this.dtyp.put("double", "double");
-		// FLOAT
-		this.dtyp.put("st", "float");
-		this.dtyp.put("sothuc", "float");
-		this.dtyp.put("float", "float");
 		// BOOLEAN
 		this.dtyp.put("bool", "boolean");
 		this.dtyp.put("bole", "boolean");
@@ -178,67 +186,94 @@ public class Compiler {
 		);
 		String udef = randString(random(10,25));
 		sb.append("Scanner " + udef + "_java_util_Scanner_nativeInterface = new Scanner(System.in);");
-		boolean java = false;
+		int curFunc = -1;
+		boolean funcParsing = false;
+		Map<Integer, List<String>> funcMap = new HashMap<>();
 		for (int i = 0 ; i < this.regx.size(); i++) {
 			String instr = this.regx.get(i);
 			instr = instr.replace("	", "");		
 			String node[] = instr.split("\\s+");
-			if (node[0].strip().equalsIgnoreCase("$java") && instr.contains("{")) {
-				java = true;
-				continue;
+			if (node[0].strip().equalsIgnoreCase(instruc[19])) {
+				curFunc++;
+				if (!funcMap.containsKey(curFunc))
+					funcMap.put(curFunc, new ArrayList<>());
+				funcMap.get(curFunc).add(instr);
+				funcParsing = true;
+			} else if (funcParsing) 
+				funcMap.get(curFunc).add(instr);
+			if (!funcParsing) {
+				this.parse(node, instr, sb, udef);
+				if (instr.toCharArray()[0] == '{'
+					|| instr.toCharArray()[instr.toCharArray().length - 1] == '{') 
+				sb.append("{");
+				if (instr.toCharArray()[0] == '}') 
+				sb.append("}");
 			}
-			if (instr.charAt(0) == '}' && node[0].strip().equalsIgnoreCase("}$end") && java) {
-				java = false;
-				continue;
+			if (instr.toCharArray().length >= 2 && instr.toCharArray()[0] == '}' && instr.toCharArray()[1] == ';' && funcParsing) {
+				funcParsing = false;
 			}
-			if (java) {
-				sb.append(instr);
-				continue;
-			}
-			if (node[0].strip().equalsIgnoreCase(instruc[0])) 
-				sb.append(this.parsePrintFunction(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[1])) 
-				sb.append(this.parseVarDeclare(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[2])) 
-				sb.append(this.parsePrintLnFunction(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[3])) 
-				sb.append(this.parseNewLineFunction());
-			if (node[0].strip().equalsIgnoreCase(instruc[4])) 
-				sb.append(this.parseWaitFunction(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[5])) 
-				sb.append(this.parseConditionIf(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[8])) 
-				sb.append(this.parseWhileLoop(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[6])) 
-				sb.append(this.parseConditionElse(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[10])) 
-				sb.append(instr.replaceFirst(instruc[10] + " ", "") + ";");
-			if (node[0].strip().equalsIgnoreCase(instruc[11])) 
-				sb.append("break;");
-			if (node[0].strip().equalsIgnoreCase(instruc[12])) 
-				sb.append("return;");
-			if (node[0].strip().equalsIgnoreCase(instruc[13])) 
-				sb.append("continue;");
-			if (node[0].strip().equalsIgnoreCase(instruc[14])) 
-				sb.append(this.parseArrayDeclare(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[15])) 
-				sb.append(this.parseForEach(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[16])) 
-				sb.append(this.parseFor(instr));
-			if (node[0].strip().equalsIgnoreCase(instruc[17])) 
-				sb.append(this.parseWaitForInput(udef, instr));
-			if (instr.toCharArray()[0] == '{'
-				|| instr.toCharArray()[instr.toCharArray().length - 1] == '{') 
-			sb.append("{");
-			if (instr.toCharArray()[0] == '}') 
-			sb.append("}");
 		}
 		sb.append("}");
+		sb.append(Compiler.STD_RANGE);
+		funcMap.keySet().forEach(k -> sb.append(this.parseMethodFunction(udef, funcMap.get(k))));
 		for (String[] imp : importedCache) {
 			sb.append(imp[1]);
 		}
 		sb.append("}");
+		//funcMap.keySet().forEach(k -> funcMap.get(k).forEach(f -> this.out(true, f)));
 		this.compiled = sb.toString();
+	}
+	boolean java = false;
+
+	private void parse(String[] node, String instr, StringBuilder sb, String udef) {
+		if ((node[0].strip().equalsIgnoreCase("$java") 
+		|| node[0].strip().equalsIgnoreCase("$java{"))
+		&& instr.contains("{")) {
+			java = true;
+			return;
+		}
+		if (instr.charAt(0) == '}' && node[0].strip().equalsIgnoreCase("}$end") && java) {
+			java = false;
+			return;		
+		}
+		if (java) {
+			sb.append(instr);
+			return;
+		}
+		if (node[0].strip().equalsIgnoreCase(instruc[0])) 
+			sb.append(this.parsePrintFunction(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[1])) 
+			sb.append(this.parseVarDeclare(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[2])) 
+			sb.append(this.parsePrintLnFunction(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[3])) 
+			sb.append(this.parseNewLineFunction());
+		if (node[0].strip().equalsIgnoreCase(instruc[4])) 
+			sb.append(this.parseWaitFunction(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[5])) 
+			sb.append(this.parseConditionIf(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[8])) 
+			sb.append(this.parseWhileLoop(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[6])) 
+			sb.append(this.parseConditionElse(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[10])) 
+			sb.append(instr.replaceFirst(instruc[10] + " ", "") + ";");
+		if (node[0].strip().equalsIgnoreCase(instruc[11])) 
+			sb.append("break;");
+		if (node[0].strip().equalsIgnoreCase(instruc[12])) 
+			sb.append("return;");
+		if (node[0].strip().equalsIgnoreCase(instruc[13])) 
+			sb.append("continue;");
+		if (node[0].strip().equalsIgnoreCase(instruc[14])) 
+			sb.append(this.parseArrayDeclare(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[15])) 
+			sb.append(this.parseForEach(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[16])) 
+			sb.append(this.parseFor(instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[17])) 
+			sb.append(this.parseWaitForInput(udef, instr));
+		if (node[0].strip().equalsIgnoreCase(instruc[21])) 
+			sb.append(this.parseConditionElseIf(instr));
 	}
 	
 	private void out(boolean serv, String string) {
@@ -287,7 +322,26 @@ public class Compiler {
 	private String parseNewLineFunction() {
 		return "System.out.println();";
 	}
-	
+	static final String STD_RANGE = "	"
+			+ "	public static int[] range(int fr, int to) {\n"
+			+ "		return khoảng(fr, to);\n"
+			+ "	}\n"
+			+ "	public static int[] khoảng(int fr, int to) {\n"
+			+ "		if (fr < 0 || to < 0) return new int[0];\n"
+			+ "		if (fr > to) {\n"
+			+ "			int cfr = fr;\n"
+			+ "			int cto = to;\n"
+			+ "			to = cfr;\n"
+			+ "			fr = cto;\n"
+			+ "		}\n"
+			+ "		int[] ret = new int[(to - fr) + 1];\n"
+			+ "		int index = 0;\n"
+			+ "		for (int i = fr; i < to + 1; i++) {\n"
+			+ "			ret[index] = i;\n"
+			+ "			index++;\n"
+			+ "		}\n"
+			+ "		return ret;\n"
+			+ "	}";
 	private String parseForEach(String in) {
 		in = in.replace(Compiler.instruc[15] + " ", "");
 		in = in.replace("{", "");
@@ -325,20 +379,28 @@ public class Compiler {
 		String arn = new String(node[0]).replaceAll("[\\d.]", "");
 		return rtp + arn + " " + node[2] + " = new " + rtp + node[0] + ";" ;
 	}
+	
 	private String parseVarDeclare(String in) {
 		in = in.replace(Compiler.instruc[1] + " ", "");
 		String node[] = in.split("\\s+");
-		// dat *stn x la 10
 		// -1    0  1  2  
 		// Parse kieu du lieu
-		String ptr = in.split("\\s+là\\s+")[1];
+		String ptr;
+		if (in.contains("là")) 
+			ptr = in.split("\\s+là\\s+")[1];
+		else ptr = in.split("\\s+=\\s+")[1];
 		String type = "vodinh";
-		if (node[0].toCharArray()[0] == '*') {
-				type = node[0].replace("*", "");
+		boolean isCustom = false;
+		if (node[0].toCharArray()[0] == '*' || node[0].toCharArray()[0] == '$') {
+			type = node[0].replace("*", "");
+			String rtp = this.dtyp.get(type);
+			if (type.contains("$")) {
+				rtp = type.replace("$", "");
+				isCustom = true;
+			}
 			if (!this.dtyp.containsKey(type)) 
 				type = "vodinh";
-			String rtp = this.dtyp.get(type);
-	
+			if (!isCustom) rtp = this.dtyp.get(type);
 			String nd2[] = in.replace("*" + type, "")
 				.split("\\s+");
 			// Parse gia tri bien
@@ -355,6 +417,7 @@ public class Compiler {
 			} return "Object " + nd2[0] + " = " + ptr + ";";
 		}
 	}
+	
 	int findArgPlacement(char[] t, char m) {
 		for (int i = 0 ; i < t.length; i++) {
 			if (t[i] == m) 
@@ -362,6 +425,7 @@ public class Compiler {
 		}
 		return -1;
 	}
+	
 	String appendFromIndexOf(char[] t, int ind) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = ind; i < t.length; i++) {
@@ -376,15 +440,25 @@ public class Compiler {
 		in = in.replace(" " + Compiler.instruc[7], "");
 		return "if(" + in + ")";
 	}
+	
+	private String parseConditionElseIf(String in) {
+		in = in.replace(Compiler.instruc[21] + " ", "");
+		in = in.replace("{", "");
+		in = in.replace(" " + Compiler.instruc[7], "");
+		return "else if(" + in + ")";
+	}
+	
 	private String parseWhileLoop(String in) {
 		in = in.replace(Compiler.instruc[8] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
 		return "while(" + in + ")";
 	}
+	
 	private String parseConditionElse(String in) {
 		return "else";
 	}
+	
 	private String parseWaitForInput(String udef, String in) {
 		in = in.replace(Compiler.instruc[17] + " ", "");
 		in = in.replace(Compiler.instruc[18], "=");
@@ -394,7 +468,7 @@ public class Compiler {
 		if (node[0].contains("*")) 
 			type = node[0].replace("*", "");
 		if (!this.dtyp.containsKey(type)) 
-			type = "";
+			type = "vodinh";
 		String rtp = this.dtyp.get(type);
 		if (node[1].equalsIgnoreCase("=")) {
 			attachTo = node[2] + "=";
@@ -407,6 +481,72 @@ public class Compiler {
 		return attachTo + udef + "_java_util_Scanner_nativeInterface.next" 
 			+ nxt + "();";
 	}
+	
+	private String parseMethodFunction(String udef, List<String> method) {
+		String header = method.get(0);
+		header = header.replace(instruc[19] + " ", "");
+		String type = "void";
+		String funcReturn = "void";
+		// test(*stn a,*stn b){
+		String[] headerNodes = header.split("\\s+");
+		if (headerNodes[0].toCharArray()[0] == '*' 
+			|| headerNodes[0].toCharArray()[0] == '$') {
+			type = headerNodes[0].replaceFirst("\\*", "");
+			if (!this.dtyp.containsKey(type)) 
+				type = "void";
+			if (!type.strip().equalsIgnoreCase("void"))
+				funcReturn = this.dtyp.get(type);
+			header = header.replaceFirst("\\" + headerNodes[0] + " ", funcReturn + " ");
+			header = "public static " + header;
+			if (headerNodes[0].toCharArray()[0] == '$') {
+				header = header.replace("void", headerNodes[0].replace("$", ""));
+				type = headerNodes[0].replace("$", "");
+			}
+		} else header = "public static void " + header;
+		String methodBody = "";
+		for (int i = 3; i < header.split("\\s+").length; i++) 
+			methodBody += header.split("\\s+")[i] + (i >= header.split("\\s+").length - 1 ? "" : " ");
+		String[] bodyNode = methodBody.split("\\s+");
+		methodBody = "";
+		for (String s1 : bodyNode) {
+			methodBody += s1 + " ";
+		}
+		methodBody = methodBody.replace("$", "").replace("", "");
+		for (String k : this.dtyp.keySet()) {
+			if (methodBody.contains("*" + k + " "))
+			methodBody = methodBody.replace("*" + k + " ", 
+				this.dtyp.get(k) + " ");
+			else if (methodBody.contains("*" + k + "[]"))
+			methodBody = methodBody.replace("*" + k + "[]", 
+				this.dtyp.get(k) + "[]");
+		}
+		String finalHeader = "";
+		for (int i = 0; i < 3; i++) 
+			finalHeader += header.split("\\s+")[i] + (i >= header.split("\\s+").length - 1 ? "" : " ");
+		finalHeader += methodBody;
+		//s.append(header);
+		this.out(finalHeader);
+		List<String> actualBody = method.subList(1, method.size() - 1);
+		StringBuilder func = new StringBuilder();
+		final String finalType = type;
+		actualBody.forEach(a -> {
+			String instr = a;
+			instr = instr.replace("	", "");		
+			String node[] = instr.split("\\s+");	
+			this.parse(node, instr, func, udef);
+			if (node[0].strip().equalsIgnoreCase(instruc[20]) && 
+				!finalType.strip().equalsIgnoreCase("void")) {
+				func.append(instr.replace(instruc[20] + " ", "return ") + ";");
+			}
+			if (instr.toCharArray()[0] == '{'
+				|| instr.toCharArray()[instr.toCharArray().length - 1] == '{') 
+				func.append("{");
+			if (instr.toCharArray()[0] == '}') 
+				func.append("}");
+		});
+		return finalHeader + func.toString() + "}";
+	}
+	
 	private String[] importLibraries(String libname) {
 		List<String> libInternal = new ArrayList<>();
 		List<String> libImports = new ArrayList<>();	
@@ -479,9 +619,13 @@ public class Compiler {
 		this.out(f.toString());
 		if (!f.exists()) {
 			f.createNewFile();
-			FileWriter writ = new FileWriter(fold.toString() + File.separator + t, StandardCharsets.UTF_8);
-			writ.write(this.compiled);
-			writ.close();
+			try (OutputStreamWriter writer =
+		             new OutputStreamWriter(new FileOutputStream(fold.toString() + File.separator + t), StandardCharsets.UTF_8)) {
+				writer.write(this.compiled);
+				writer.close();
+			} catch (Exception e) {
+				throw e;
+			}
 			int o1 = this.runProcess("javac " + f.toString(), false);
 			if (o1 != 0) {
 				this.out(true, "[!] Khong thanh cong trong viec bien dich ma nguon! Hay kiem tra lai code cua ban!");
