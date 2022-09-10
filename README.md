@@ -1,5 +1,5 @@
 # Ngôn ngữ lập trình Vixt
-Phiên bản thử nghiệm `0.1.0-beta`
+Phiên bản thử nghiệm `0.1.1-beta`
 
 Hiện đang lười nên chưa có docs...
 
