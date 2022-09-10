@@ -16,8 +16,8 @@ import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
 public class Main {
-	public static final String VERSION = "v0.1.0-beta Build 20";
-	public static final int BUILD_VERSION = 1020;
+	public static final String VERSION = "v0.1.1-beta Build 20";
+	public static final int BUILD_VERSION = 1021;
 
 	public static String VIXT_PATH = "C:\\Vixt\\";
 	public static OSType OS = OSType.WINDOWS;
@@ -26,7 +26,8 @@ public class Main {
 		try {
 			Runtime.getRuntime().exec("javac -version");
 		} catch (Exception e) {
-			Main.out("[!] Khong tim thay JDK tren may cua ban! Vui long cai dat tai duong link nay\nhttps://www.oracle.com/java/technologies/downloads/#jdk18-windows\nBam enter de thoat!");
+			Main.out(
+					"[!] Khong tim thay JDK tren may cua ban! Vui long cai dat tai duong link nay\nhttps://www.oracle.com/java/technologies/downloads/#jdk18-windows\nBam enter de thoat!");
 			Scanner s = new Scanner(System.in);
 			s.nextLine();
 			s.close();
@@ -34,8 +35,7 @@ public class Main {
 			return;
 		}
 		long mil = System.currentTimeMillis();
-		if (!System.getProperty("os.name")
-			.toLowerCase().contains("windows")) {
+		if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
 			VIXT_PATH = "";
 			Main.OS = OSType.UNIX;
 		}
@@ -60,7 +60,8 @@ public class Main {
 			s.append(a + " ");
 		}
 		boolean spaced = false;
-		if (s.charAt(0) == '"') spaced = true;
+		if (s.charAt(0) == '"')
+			spaced = true;
 		String fr = s.toString().split("\\.vx")[0] + ".vx" + (spaced ? "\"" : "");
 		File src = new File(new File(fr).getAbsolutePath());
 		if (!src.exists()) {
@@ -71,33 +72,30 @@ public class Main {
 			return;
 		}
 		Signal.handle(new Signal("INT"), new SignalHandler() {
-            public void handle(Signal signal) {
-            	out("");
-            	out("Chuong trinh da bi buoc dong! Thoi gian hoat dong: " + (System.currentTimeMillis() - mil) + "ms");
-            	System.exit(0);
-            }
-        });
+			public void handle(Signal signal) {
+				out("");
+				out("Chuong trinh da bi buoc dong! Thoi gian hoat dong: " + (System.currentTimeMillis() - mil) + "ms");
+				System.exit(0);
+			}
+		});
 		Main.createOrLoadLibs();
 		Compiler c = new Compiler(src, args);
 		c.compile();
 	}
+
 	public static enum OSType {
-		WINDOWS,
-		UNIX,
-		APPLE
+		WINDOWS, UNIX, APPLE
 	}
-	
+
 	static String outStream(InputStream ins) throws Exception {
 		String line = null;
-		BufferedReader in = new BufferedReader(
-			new InputStreamReader(ins)
-		);
+		BufferedReader in = new BufferedReader(new InputStreamReader(ins));
 		while ((line = in.readLine()) != null) {
 			return line;
 		}
 		return null;
 	}
-	
+
 	public static void printHowTo() {
 		out("Cach kiem tra cac thong tin");
 		out(" -version  Kiem tra phien ban hien tai cua Vixt Lang");
@@ -114,6 +112,7 @@ public class Main {
 		out(" --debug   Bat che do debug phan mem");
 		out("Vi du:  vixt tenfile.vx --clean --silent");
 	}
+
 	public static void deleteDir(File file) {
 		File[] contents = file.listFiles();
 		if (contents != null) {
@@ -125,18 +124,19 @@ public class Main {
 		}
 		file.delete();
 	}
-	
+
 	public static void out(String s) {
 		System.out.println(s);
 	}
-	
+
 	public static void err(String s) {
 		System.err.println(s);
 	}
-	
+
 	public static void createOrLoadLibs() throws IOException {
 		File fld = new File(Main.VIXT_PATH + "libs/");
-		if (!fld.exists()) fld.mkdirs();
+		if (!fld.exists())
+			fld.mkdirs();
 		File sf = new File(Main.VIXT_PATH, "libs/std.lyb");
 		if (!sf.exists()) {
 			sf.createNewFile();
@@ -146,9 +146,9 @@ public class Main {
 		}
 	}
 
-	static final String STD_LIB = "// Standard BStray library\n" + "// @author GiaKhanhVN\n" + "// version 0.1\n" + "\n"
+	static final String STD_LIB = "// Standard VixtLang library\n" + "// @author GiaKhanhVN\n" + "// version 0.1\n" + "\n"
 			+ "$Imports(\"java.util.Arrays\",\"java.util.Random\")\n" + "\n" + "public static class %lname% {\n"
-			+ " public static final String VERSION = \"ALPHA-0.1-B0144\";"
+			+ " public static final String VERSION = \"ALPHA-0.1-B0155\";\n"
 			+ "	public static int random(int min, int max) {\n" + "		if (min < 0) min = 0;\n"
 			+ "		if (max < 0) max = 0;\n" + "		return new Random().nextInt((max - min) + 1) + min;\n" + "	}\n"
 			+ "	static String xau_random(int targetStringLength) {\n" + "		int leftLimit = 97;\n"
@@ -169,5 +169,10 @@ public class Main {
 			+ "		try {\n" + "			return Integer.parseInt(st);\n" + "		} catch (Exception e) {\n"
 			+ "			return -1;\n" + "		}\n" + "	}\n" + "	public static long thanh_stnl(String st) {\n"
 			+ "		try {\n" + "			return Long.parseLong(st);\n" + "		} catch (Exception e) {\n"
-			+ "			return -1;\n" + "		}\n" + "	}\n" + "}";
+			+ "			return -1;\n" + "		}\n" + "	}\n	public static long[] rangeLong(int fr, int to) {\n"
+			+ "		if (fr < 0 || to < 0)\n" + "			return new long[0];\n" + "		if (fr > to) {\n"
+			+ "			int cfr = fr;\n" + "			int cto = to;\n" + "			to = cfr;\n"
+			+ "			fr = cto;\n" + "		}\n" + "		long[] ret = new long[(to - fr) + 1];\n"
+			+ "		int index = 0;\n" + "		for (int i = fr; i < to + 1; i++) {\n" + "			ret[index] = i;\n"
+			+ "			index++;\n" + "		}\n" + "		return ret;\n" + "	}\n" + "" + "}";
 }
