@@ -1,0 +1,83 @@
+# Custom Language File used for the Vixt Programming Language
+# The order of the syntax translation must kept the same
+# Lines with //, #, ; at the beginning are ignored
+# "#" can be used anywhere and do not interfere with the config
+
+# Those settings below are an example on how Vixt Syntax can be customized
+# The syntax used below are an exact copy of the Compiler.BuiltInLang.EN (English) syntax
+
+# In order to use custom syntax in the Vixt Compiler, add "--langc=<custom lang file>" and
+# you can use custom syntax without flags modification by adding "#langc <custom lang file>" to the source file
+# while <custom lang file> is the syntax file name. For example with this file "--langc=customSyntax"
+
+; Printing
+prt # Change the text before this
+
+; Define a variable
+set # Change the text before this
+
+; Printing with a Line
+prtln # Change the text before this
+
+; Linebreak (\n for Unix and \r\n for NT)
+lb # Change the text before this
+
+; Thread Sleeping (Stop the code for specific amount of seconds)
+await # Change the text before this
+
+; If statement
+if # Change the text before this
+
+; Else statement
+else # Change the text before this
+
+; Then statement
+then # Change the text before this
+
+; While Loop
+while # Change the text before this
+
+; For loop 
+for # Change the text before this
+
+; Call Function
+call # Change the text before this
+
+; Break Function
+break # Break out of the loop
+
+; Return (use to return (stop the code) only)
+return # Change the text before this
+
+; Continue (Skip this part in a Loop)
+continue # Change the text before this
+
+; Defining Arrays
+defarr # Change the text before this
+
+; For each statement
+foreach # Change the text before this
+
+; For loop 
+for # Change the text before this
+
+; Await for user input 
+input # Change the text before this
+
+; To statement (=)
+to # Change the text before this
+
+; Function Defining
+fun # Change the text before this
+
+; Return a parameter
+return # Change the text before this
+
+; Else If statement
+elseIf # Change the text before this
+
+; As statement
+as # Change the text before this
+
+; In statement
+in # Change the text before this

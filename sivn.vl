@@ -1,0 +1,90 @@
+# ENGLISH
+#
+# This is the non-UTF8/simplified Vietnamese Instructions 
+# implementation for Vixt Programming Language
+# This is a built-in language option
+#
+# VIETNAMESE
+#
+# Day la bo cu phap da duoc don gian hoa/phi UTF-8
+# cho tieng Viet danh cho ngon ngu lap trinh Vixt
+# Day la mot tuy chon ngon ngu duoc tich hop san
+#
+# How to use/cach su dung:
+# You can add syntax option to your source file "#langc <sivn>"
+# or use compiler flags modification "vixt <file> <flags> --langc=sivn"
+#
+# @author: GiaKhanhVN aka KhanhVN
+
+
+; Printing
+in # Vixt Simplified Vietnamese
+
+; Define a variable
+dat # Vixt Simplified Vietnamese
+
+; Printing with a Line
+inxd # Vixt Simplified Vietnamese
+
+; Linebreak (\n for Unix and \r\n for NT)
+xd # Vixt Simplified Vietnamese
+
+; Thread Sleeping (Stop the code for specific amount of seconds)
+doi # Vixt Simplified Vietnamese
+
+; If statement
+neu # Vixt Simplified Vietnamese
+
+; Else statement
+khong # Vixt Simplified Vietnamese
+
+; Then statement
+thi # Vixt Simplified Vietnamese
+
+; While Loop
+khi # Vixt Simplified Vietnamese
+
+; For loop 
+cho # Vixt Simplified Vietnamese
+
+; Call Function
+goi # Vixt Simplified Vietnamese
+
+; Break Function
+pha_lap # Break out of the loop
+
+; Return (use to return (stop the code) only)
+quay_lai # Vixt Simplified Vietnamese
+
+; Continue (Skip this part in a Loop)
+nhay_qua # Vixt Simplified Vietnamese
+
+; Defining Arrays
+tao_mang # Vixt Simplified Vietnamese
+
+; For each statement
+cho_moi # Vixt Simplified Vietnamese
+
+; For loop 
+cho # Vixt Simplified Vietnamese
+
+; Await for user input 
+nhap # Vixt Simplified Vietnamese
+
+; To statement (=)
+vao # Vixt Simplified Vietnamese
+
+; Function Defining
+ham # Vixt Simplified Vietnamese
+
+; Return a parameter
+tra # Vixt Simplified Vietnamese
+
+; Else If statement
+khong_neu # Vixt Simplified Vietnamese
+
+; As statement
+la # Vixt Simplified Vietnamese
+
+; In statement
+trong # Vixt Simplified Vietnamese
