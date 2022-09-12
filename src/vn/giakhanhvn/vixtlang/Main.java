@@ -16,13 +16,18 @@ import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
 public class Main {
-	public static final String VERSION = "v0.1.1-beta Build 20";
-	public static final int BUILD_VERSION = 1021;
+	public static final String VERSION = "v0.1.2-beta Build 20";
+	public static final int BUILD_VERSION = 1023;
 
 	public static String VIXT_PATH = "C:\\Vixt\\";
+	public static String SEPR = File.separator;
 	public static OSType OS = OSType.WINDOWS;
 
 	public static void main(String[] args) throws Exception {
+		if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
+			VIXT_PATH = "";
+			Main.OS = OSType.UNIX;
+		}
 		try {
 			Runtime.getRuntime().exec("javac -version");
 		} catch (Exception e) {
@@ -35,10 +40,6 @@ public class Main {
 			return;
 		}
 		long mil = System.currentTimeMillis();
-		if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
-			VIXT_PATH = "";
-			Main.OS = OSType.UNIX;
-		}
 		StringBuilder s = new StringBuilder();
 		if (args.length <= 0) {
 			err("[!] Lenh Khong hop le! Yeu cau it nhat vi tri cua file can compile");
@@ -79,6 +80,7 @@ public class Main {
 			}
 		});
 		Main.createOrLoadLibs();
+		Main.createOrLoadLangs();
 		Compiler c = new Compiler(src, args);
 		c.compile();
 	}
@@ -110,6 +112,8 @@ public class Main {
 		out(" --nv   Han che hoan toan console print cua phan mem");
 		out(" --norun   Chi compile nhung khong interpret phan mem");
 		out(" --debug   Bat che do debug phan mem");
+		out(" --lang=<en/vi>   Su dung nhung built-in language syntax (VN/EN)");
+		out(" --langc=<file name>   Su dung custom language syntax (.vl) (Example: --langc=sivn)");
 		out("Vi du:  vixt tenfile.vx --clean --silent");
 	}
 
@@ -134,10 +138,11 @@ public class Main {
 	}
 
 	public static void createOrLoadLibs() throws IOException {
+		Main.STD_LIB = Main.format(Main.STD_LIB, "\n", System.lineSeparator());
 		File fld = new File(Main.VIXT_PATH + "libs/");
 		if (!fld.exists())
 			fld.mkdirs();
-		File sf = new File(Main.VIXT_PATH, "libs/std.lyb");
+		File sf = new File(Main.VIXT_PATH + "libs/std.lyb");
 		if (!sf.exists()) {
 			sf.createNewFile();
 			FileWriter w = new FileWriter(Main.VIXT_PATH + "libs/std.lyb", StandardCharsets.UTF_8);
@@ -145,8 +150,211 @@ public class Main {
 			w.close();
 		}
 	}
+	public static void createOrLoadLangs() throws IOException {
+		Main.SIMPLIFIED_VNESE = Main.format(Main.SIMPLIFIED_VNESE, "\n", System.lineSeparator());
+		Main.EXAMPLE_FILE = Main.format(Main.EXAMPLE_FILE, "\n", System.lineSeparator());
+		File fld = new File(Main.VIXT_PATH + "langs/");
+		if (!fld.exists())
+			fld.mkdirs();
+		File sf = new File(Main.VIXT_PATH + "langs/sivn.vl");
+		if (!sf.exists()) {
+			sf.createNewFile();
+			FileWriter w = new FileWriter(Main.VIXT_PATH + "langs/sivn.vl", StandardCharsets.UTF_8);
+			w.write(Main.SIMPLIFIED_VNESE);
+			w.close();
+		}
+		File sfx = new File(Main.VIXT_PATH + "langs/customSyntax.vl");
+		if (!sfx.exists()) {
+			sfx.createNewFile();
+			FileWriter w = new FileWriter(Main.VIXT_PATH + "langs/customSyntax.vl", StandardCharsets.UTF_8);
+			w.write(Main.EXAMPLE_FILE);
+			w.close();
+		}
+	}
+	public static String format(String str, Object... repl) {
+		return Main.format(str, "%d", repl);
+	}
 
-	static final String STD_LIB = "// Standard VixtLang library\n" + "// @author GiaKhanhVN\n" + "// version 0.1\n" + "\n"
+	public static String format(String str, String replBy, Object... repl) {
+		for (Object o : repl) {
+			str = str.replace(replBy, o.toString());
+		}
+		return str;
+	}
+	static String EXAMPLE_FILE = "# Custom Language File used for the Vixt Programming Language\n" +
+			"# The order of the syntax translation must kept the same\n" +
+			"# Lines with //, #, ; at the beginning are ignored\n" +
+			"# \"#\" can be used anywhere and do not interfere with the config\n" +
+			"\n" +
+			"# Those settings below are an example on how Vixt Syntax can be customized\n" +
+			"# The syntax used below are an exact copy of the Compiler.BuiltInLang.EN (English) syntax\n" +
+			"\n" +
+			"# In order to use custom syntax in the Vixt Compiler, add \"--langc=<custom lang file>\" and\n" +
+			"# you can use custom syntax without flags modification by adding \"#langc <custom lang file>\" to the source file\n" +
+			"# while <custom lang file> is the syntax file name. For example with this file \"--langc=customSyntax\"\n" +
+			"\n" +
+			"; Printing\n" +
+			"prt # Change the text before this\n" +
+			"\n" +
+			"; Define a variable\n" +
+			"set # Change the text before this\n" +
+			"\n" +
+			"; Printing with a Line\n" +
+			"prtln # Change the text before this\n" +
+			"\n" +
+			"; Linebreak (\\n for Unix and \\r\\n for NT)\n" +
+			"lb # Change the text before this\n" +
+			"\n" +
+			"; Thread Sleeping (Stop the code for specific amount of seconds)\n" +
+			"await # Change the text before this\n" +
+			"\n" +
+			"; If statement\n" +
+			"if # Change the text before this\n" +
+			"\n" +
+			"; Else statement\n" +
+			"else # Change the text before this\n" +
+			"\n" +
+			"; Then statement\n" +
+			"then # Change the text before this\n" +
+			"\n" +
+			"; While Loop\n" +
+			"while # Change the text before this\n" +
+			"\n" +
+			"; For loop \n" +
+			"for # Change the text before this\n" +
+			"\n" +
+			"; Call Function\n" +
+			"call # Change the text before this\n" +
+			"\n" +
+			"; Break Function\n" +
+			"break # Break out of the loop\n" +
+			"\n" +
+			"; Return (use to return (stop the code) only)\n" +
+			"return # Change the text before this\n" +
+			"\n" +
+			"; Continue (Skip this part in a Loop)\n" +
+			"continue # Change the text before this\n" +
+			"\n" +
+			"; Defining Arrays\n" +
+			"defarr # Change the text before this\n" +
+			"\n" +
+			"; For each statement\n" +
+			"foreach # Change the text before this\n" +
+			"\n" +
+			"; For loop \n" +
+			"for # Change the text before this\n" +
+			"\n" +
+			"; Await for user input \n" +
+			"input # Change the text before this\n" +
+			"\n" +
+			"; To statement (=)\n" +
+			"to # Change the text before this\n" +
+			"\n" +
+			"; Function Defining\n" +
+			"fun # Change the text before this\n" +
+			"\n" +
+			"; Return a parameter\n" +
+			"return # Change the text before this\n" +
+			"\n" +
+			"; Else If statement\n" +
+			"elseIf # Change the text before this\n" +
+			"\n" +
+			"; As statement\n" +
+			"as # Change the text before this\n" +
+			"\n" +
+			"; In statement\n" +
+			"in # Change the text before this";
+	static String SIMPLIFIED_VNESE = "# ENGLISH\n" +
+			"#\n" +
+			"# This is the non-UTF8/simplified Vietnamese Instructions \n" +
+			"# implementation for Vixt Programming Language\n" +
+			"# This is a built-in language option\n" +
+			"#\n" +
+			"# VIETNAMESE\n" +
+			"#\n" +
+			"# Day la bo cu phap da duoc don gian hoa/phi UTF-8\n" +
+			"# cho tieng Viet danh cho ngon ngu lap trinh Vixt\n" +
+			"# Day la mot tuy chon ngon ngu duoc tich hop san\n" +
+			"#\n" +
+			"# How to use/cach su dung:\n" +
+			"# You can add syntax option to your source file \"#langc <sivn>\"\n" +
+			"# or use compiler flags modification \"vixt <file> <flags> --langc=sivn\"\n" +
+			"#\n" +
+			"# @author: GiaKhanhVN aka KhanhVN\n" +
+			"\n" +
+			"\n" +
+			"; Printing\n" +
+			"in # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Define a variable\n" +
+			"dat # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Printing with a Line\n" +
+			"inxd # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Linebreak (\\n for Unix and \\r\\n for NT)\n" +
+			"xd # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Thread Sleeping (Stop the code for specific amount of seconds)\n" +
+			"doi # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; If statement\n" +
+			"neu # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Else statement\n" +
+			"khong # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Then statement\n" +
+			"thi # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; While Loop\n" +
+			"khi # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; For loop \n" +
+			"cho # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Call Function\n" +
+			"goi # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Break Function\n" +
+			"pha_lap # Break out of the loop\n" +
+			"\n" +
+			"; Return (use to return (stop the code) only)\n" +
+			"quay_lai # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Continue (Skip this part in a Loop)\n" +
+			"nhay_qua # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Defining Arrays\n" +
+			"tao_mang # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; For each statement\n" +
+			"cho_moi # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; For loop \n" +
+			"cho # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Await for user input \n" +
+			"nhap # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; To statement (=)\n" +
+			"vao # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Function Defining\n" +
+			"ham # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Return a parameter\n" +
+			"tra # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; Else If statement\n" +
+			"khong_neu # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; As statement\n" +
+			"la # Vixt Simplified Vietnamese\n" +
+			"\n" +
+			"; In statement\n" +
+			"trong # Vixt Simplified Vietnamese";
+	static String STD_LIB = "// Standard VixtLang library\n" + "// @author GiaKhanhVN\n" + "// version 0.1\n" + "\n"
 			+ "$Imports(\"java.util.Arrays\",\"java.util.Random\")\n" + "\n" + "public static class %lname% {\n"
 			+ " public static final String VERSION = \"ALPHA-0.1-B0155\";\n"
 			+ "	public static int random(int min, int max) {\n" + "		if (min < 0) min = 0;\n"

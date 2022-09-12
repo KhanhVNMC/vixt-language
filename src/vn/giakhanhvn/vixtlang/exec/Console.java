@@ -63,7 +63,7 @@ public class Console {
 			String line;
 			BufferedReader bre = new BufferedReader(new InputStreamReader(err));
 			while ((line = bre.readLine()) != null) {
-				System.out.println("[ICONSOLE] " + line);
+				System.err.println("[ICONSOLE] " + line);
 			}
 		}
 		System.out.println("");

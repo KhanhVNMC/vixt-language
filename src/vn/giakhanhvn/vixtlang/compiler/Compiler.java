@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,11 +33,18 @@ public class Compiler {
 	}
 	
 	public void compile() {
+		if (instruc.length < 24) {
+			Main.err("[!] Khong the tai Instruction Syntax! Vui long kiem tra lai");
+			return;
+		}
 		long l = System.currentTimeMillis();
 		try {
 			this.def();
 			String path = this.interpret(l);
-			if (path == null) throw new RuntimeException();
+			if (path == null) {
+				System.out.println("");
+				return;
+			}
 			this.out("Jar goc: " + path);
 			this.out(true, "Vi tri JAR: " + this.source.getAbsoluteFile().getParent() + File.separator + this.pgrn + ".jar");
 			Files.move(Paths.get(path), Paths.get(this.source.getAbsoluteFile().getParent() + File.separator + this.pgrn + ".jar"), StandardCopyOption.REPLACE_EXISTING);
@@ -56,8 +62,7 @@ public class Compiler {
 			}
 			if (this.rfl.noRun && this.rfl.absSilent) System.out.println("Thanh cong! " + (System.currentTimeMillis() - l) + "ms");
 		} catch (Exception e) {
-			if (this.rfl.absSilent) System.out.println("Da xay ra loi! Stack trace: ");
-			this.out(true, "[!] Khong thanh cong trong viec compile! Vui long lien he developer va kiem tra lai code cua ban! Stack trace:");
+			System.out.println("[!] Da xay ra loi! Stack trace: ");
 			e.printStackTrace();			
 		}
 		this.out(true, "Chuong trinh chay trong " + (System.currentTimeMillis() - l) + "ms");
@@ -74,8 +79,10 @@ public class Compiler {
 	Map<String, String> dtyp = new LinkedHashMap<>();
 	private List<String> regx = new ArrayList<>();
 	
-	// TODO Instructions
-	static String[] instruc = {
+	static String[] instruc = new String[0];
+	
+	// TODO Instructions VI
+	static String[] instruc_vi = {
 		"in",	// PRINT 0
 		"đặt",	// DEFINE VARIABLE 1
 		"inxd",	// PRINTLN 2 
@@ -98,12 +105,42 @@ public class Compiler {
 		"hàm", // FUNCTION 19
 		"trả", // RETURN VAR 20
 		"không_nếu", // ELSE IF 21
+		"là", // IS 22
+		"trong" // IN 23
 	};
-	
+	// TODO Instructions EN
+	static String[] instruc_en = {
+		"prt", // PRINT 0
+		"set",	// DEFINE VARIABLE 1
+		"prtln",	// PRINTLN 2 
+		"lb",	// LINEBREAK 3
+		"await", // AWAIT 4 
+		"if",	// IF 5 
+		"else",// ELSE 6
+		"then", // THEN 7 
+		"while", // WHILE 8
+		"for",	// FOR 9
+		"call",	// CALL 10
+		"break", // BREAK 11
+		"return", // RETURN 12
+		"continue", // CONTINUE 13
+		"defarr", // DEFINE ARRAY 14
+		"foreach",	// FOR EACH 15
+		"for"	,// FOR 16
+		"input", // INPUT 17
+		"to",	// TO 18
+		"fun", // FUNCTION 19
+		"return", // RETURN VAR 20
+		"elseIf", // ELSE IF 21
+		"as", // IS 22
+		"in" // IN 23
+	};
+
 	Compiler(File f, String[] file, String[] flags) {
 		this.source = f;
 		this.src = file;
 		this.rfl = new CompilerFlagParsing(flags);
+		Compiler.instruc = rfl.languageSetting.synt;
 		// FLOAT
 		this.dtyp.put("st", "float");
 		this.dtyp.put("sothuc", "float");
@@ -142,12 +179,13 @@ public class Compiler {
 	}
 	// Bat dau compile
 	private void def() {
-		if (src[0].contains("#ten ")) 
-			pgrn = src[0].replace("#ten ", "");
-		else throw new RuntimeException();
+		if (src.length >= 2 && src[0].contains("#name ")) 
+			pgrn = src[0].replace("#name ", "");
+		else pgrn = this.source.getName().split("\\.")[0];
 		this.init();
 	}
-	
+
+	private boolean langDef = false;
 	//Khoi chay interpret
 	private void init() {
 		this.cleanFile();
@@ -157,8 +195,8 @@ public class Compiler {
 			String instr = this.regx.get(i);
 			if (instr.charAt(0) != '#') continue;
 			String[] str = instr.split("\\s+");
-			if (str[0].strip().equalsIgnoreCase("#thuvien")) {
-				imports.add(instr.replace("#thuvien", "")
+			if (str[0].strip().equalsIgnoreCase("#lib")) {
+				imports.add(instr.replace("#lib", "")
 					.replace("<", "").replace(">", "")
 					.replace(" ", "")
 				);
@@ -166,6 +204,36 @@ public class Compiler {
 				sinImports.add(instr.replace("#import", "")
 					.replace("<", "").replace(">", "")
 					.replace(" ", ""));
+			} else if (str[0].strip().equalsIgnoreCase("#lang") && !this.langDef) {
+				try {
+					this.langDef = true;
+					Compiler.instruc = new Language(
+							BuiltInLang.valueOf(
+									instr.replace("#lang", "")
+											.replace("<","")
+											.replace(">","")
+											.replace(" ", "").toUpperCase()
+							)
+					).synt;
+				} catch (Exception e) {
+					Main.err(new IllegalStateException("Unable to load language! Wrong type").getMessage());
+					System.exit(0);
+				}
+			} else if (str[0].strip().equalsIgnoreCase("#langc") && !this.langDef) {
+				try {
+					this.langDef = true;
+					Compiler.instruc = new Language(
+							new File(Main.VIXT_PATH + "langs" + Main.SEPR +
+									instr.replace("#langc", "")
+											.replace("<","")
+											.replace(">","")
+											.replace(" ", "") + ".vl"
+							)
+					).synt;
+				} catch (Exception e) {
+					Main.err(new IllegalStateException("Unable to load language file").getMessage());
+					System.exit(0);
+				}
 			}
 		}
 		List<String[]> importedCache = new ArrayList<>();
@@ -176,7 +244,7 @@ public class Compiler {
 		for (String i : imports) {
 			importedCache.add(this.importLibraries(i));
 		}
-		StringBuilder sb = new StringBuilder();
+		Node sb = new Node();
 		for (String[] imp : importedCache) {
 			sb.append(imp[0]);
 		}
@@ -185,13 +253,14 @@ public class Compiler {
 			.replace(" ", ""))
 		);
 		String udef = randString(random(10,25));
-		sb.append("Scanner " + udef + "_java_util_Scanner_nativeInterface = new Scanner(System.in);");
+		sb.append("Scanner " + udef + "_Scanner_nativeInterface = new Scanner(System.in);");
 		int curFunc = -1;
 		boolean funcParsing = false;
 		Map<Integer, List<String>> funcMap = new HashMap<>();
 		for (int i = 0 ; i < this.regx.size(); i++) {
 			String instr = this.regx.get(i);
-			instr = instr.replace("	", "");		
+			instr = instr.replace("	", "");
+			Node.mapper.put(i + 1, new Compiler.WrappedInstruction(this.source.getParent() + File.separator + this.source.getName(), i + 1, instr));
 			String node[] = instr.split("\\s+");
 			if (node[0].strip().equalsIgnoreCase(instruc[19])) {
 				curFunc++;
@@ -202,7 +271,8 @@ public class Compiler {
 			} else if (funcParsing) 
 				funcMap.get(curFunc).add(instr);
 			if (!funcParsing) {
-				this.parse(node, instr, sb, udef);
+				Node.srcTracker++;
+				this.parse(false, node, instr, sb, udef);
 				if (instr.toCharArray()[0] == '{'
 					|| instr.toCharArray()[instr.toCharArray().length - 1] == '{') 
 				sb.append("{");
@@ -214,18 +284,23 @@ public class Compiler {
 			}
 		}
 		sb.append("}");
-		sb.append(Compiler.STD_RANGE);
-		funcMap.keySet().forEach(k -> sb.append(this.parseMethodFunction(udef, funcMap.get(k))));
+		funcMap.keySet().forEach(k -> 
+			this.parseMethodFunction(udef, funcMap.get(k)).forEach(l -> {
+				Node.srcTracker++;
+				sb.append(l);
+			}
+		));
 		for (String[] imp : importedCache) {
 			sb.append(imp[1]);
 		}
+		sb.append(Compiler.STD_RANGE);
 		sb.append("}");
 		//funcMap.keySet().forEach(k -> funcMap.get(k).forEach(f -> this.out(true, f)));
-		this.compiled = sb.toString();
+		this.compiled = sb.build().toString();
 	}
 	boolean java = false;
 
-	private void parse(String[] node, String instr, StringBuilder sb, String udef) {
+	private void parse(boolean ignore, String[] node, String instr, Node sb, String udef) {
 		if ((node[0].strip().equalsIgnoreCase("$java") 
 		|| node[0].strip().equalsIgnoreCase("$java{"))
 		&& instr.contains("{")) {
@@ -237,43 +312,49 @@ public class Compiler {
 			return;		
 		}
 		if (java) {
-			sb.append(instr);
+			sb.append(ignore, instr);
 			return;
 		}
 		if (node[0].strip().equalsIgnoreCase(instruc[0])) 
-			sb.append(this.parsePrintFunction(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[1])) 
-			sb.append(this.parseVarDeclare(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[2])) 
-			sb.append(this.parsePrintLnFunction(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[3])) 
-			sb.append(this.parseNewLineFunction());
-		if (node[0].strip().equalsIgnoreCase(instruc[4])) 
-			sb.append(this.parseWaitFunction(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[5])) 
-			sb.append(this.parseConditionIf(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[8])) 
-			sb.append(this.parseWhileLoop(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[6])) 
-			sb.append(this.parseConditionElse(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[10])) 
-			sb.append(instr.replaceFirst(instruc[10] + " ", "") + ";");
-		if (node[0].strip().equalsIgnoreCase(instruc[11])) 
-			sb.append("break;");
-		if (node[0].strip().equalsIgnoreCase(instruc[12])) 
-			sb.append("return;");
-		if (node[0].strip().equalsIgnoreCase(instruc[13])) 
-			sb.append("continue;");
-		if (node[0].strip().equalsIgnoreCase(instruc[14])) 
-			sb.append(this.parseArrayDeclare(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[15])) 
-			sb.append(this.parseForEach(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[16])) 
-			sb.append(this.parseFor(instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[17])) 
-			sb.append(this.parseWaitForInput(udef, instr));
-		if (node[0].strip().equalsIgnoreCase(instruc[21])) 
-			sb.append(this.parseConditionElseIf(instr));
+			sb.append(ignore, this.parsePrintFunction(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[1])) 
+			sb.append(ignore, this.parseVarDeclare(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[2])) 
+			sb.append(ignore, this.parsePrintLnFunction(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[3])) 
+			sb.append(ignore, this.parseNewLineFunction());
+		else if (node[0].strip().equalsIgnoreCase(instruc[4])) 
+			sb.append(ignore, this.parseWaitFunction(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[5])) 
+			sb.append(ignore, this.parseConditionIf(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[8])) 
+			sb.append(ignore, this.parseWhileLoop(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[6])) 
+			sb.append(ignore, this.parseConditionElse(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[10])) 
+			sb.append(ignore, instr.replaceFirst(instruc[10] + " ", "") + ";");
+		else if (node[0].strip().equalsIgnoreCase(instruc[11])) 
+			sb.append(ignore, "break;");
+		else if (node[0].strip().equalsIgnoreCase(instruc[12])) 
+			sb.append(ignore, "return;");
+		else if (node[0].strip().equalsIgnoreCase(instruc[13])) 
+			sb.append(ignore, "continue;");
+		else if (node[0].strip().equalsIgnoreCase(instruc[14])) 
+			sb.append(ignore, this.parseArrayDeclare(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[15])) 
+			sb.append(ignore, this.parseForEach(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[16])) 
+			sb.append(ignore, this.parseFor(instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[17])) 
+			sb.append(ignore, this.parseWaitForInput(udef, instr));
+		else if (node[0].strip().equalsIgnoreCase(instruc[21])) 
+			sb.append(ignore, this.parseConditionElseIf(instr));
+		else if (!node[0].startsWith("#") 
+			&& !node[0].startsWith("//")
+			&& !node[0].startsWith("}")
+			&& !node[0].startsWith("{")
+		) 
+		sb.append(ignore, instr + ";");
 	}
 	
 	private void out(boolean serv, String string) {
@@ -296,15 +377,16 @@ public class Compiler {
 				.replaceAll("(?:/\\*(?:[^*]|(?:\\*+[^*/]))*\\*+/)|(?://.*)", "");
 			src[i] = this.normalize(src[i]);
 			if (!src[i].isBlank()) regx.add(src[i]);
+			else regx.add("//");
 		}
 	}
 	private String parsePrintLnFunction(String in) {
-		in = in.replaceFirst("inxd ", "");
+		in = in.replaceFirst(instruc[2] + " ", "");
 		return "System.out.println(" + in + ");";
 	}
 	
 	private String parsePrintFunction(String in) {
-		in = in.replaceFirst("in ", "");
+		in = in.replaceFirst(instruc[0] + " ", "");
 		return "System.out.print(" + in + ");";
 	}
 	
@@ -346,7 +428,7 @@ public class Compiler {
 		in = in.replace(Compiler.instruc[15] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
-		in = in.replace(" trong ", ":").replace(" ", "");
+		in = in.replace(" " + instruc[23]+ " ", ":").replace(" ", "");
 		return "for(var " + in + ")";
 	}
 	
@@ -354,7 +436,7 @@ public class Compiler {
 		in = in.replace(Compiler.instruc[16] + " ", "");
 		in = in.replace("{", "");
 		in = in.replace(" " + Compiler.instruc[7], "");
-		in = in.replace("chạy", ";").replace("khi", ";");
+		in = in.replace(instruc[8], ";").replace(instruc[10], ";");
 		String node[] = in.split("\\s+");
 		String type = "vodinh";
 		String com = node[0];
@@ -386,8 +468,8 @@ public class Compiler {
 		// -1    0  1  2  
 		// Parse kieu du lieu
 		String ptr;
-		if (in.contains("là")) 
-			ptr = in.split("\\s+là\\s+")[1];
+		if (in.contains(instruc[22])) 
+			ptr = in.split("\\s+" + instruc[22] + "\\s+")[1];
 		else ptr = in.split("\\s+=\\s+")[1];
 		String type = "vodinh";
 		boolean isCustom = false;
@@ -404,14 +486,14 @@ public class Compiler {
 			String nd2[] = in.replace("*" + type, "")
 				.split("\\s+");
 			// Parse gia tri bien
-			if (nd2[0].equalsIgnoreCase("là")
+			if (nd2[0].equalsIgnoreCase(instruc[22])
 			|| node[0].equalsIgnoreCase("=")) {
 				return rtp + " " + node[1] + " = " + ptr + ";";
 			} return rtp + " " + node[1] + " = " + ptr + ";";
 		} else {
 			String nd2[] = in.split("\\s+");
 			// Parse gia tri bien
-			if (nd2[0].equalsIgnoreCase("là")
+			if (nd2[0].equalsIgnoreCase(instruc[22])
 			|| node[0].equalsIgnoreCase("=")) {
 				return  "Object " + nd2[0] + " = " + ptr + ";";
 			} return "Object " + nd2[0] + " = " + ptr + ";";
@@ -429,7 +511,7 @@ public class Compiler {
 	String appendFromIndexOf(char[] t, int ind) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = ind; i < t.length; i++) {
-			sb.append(t[i]);
+			sb.append("" + t[i]);
 		}
 		return sb.toString();
 	}
@@ -478,11 +560,11 @@ public class Compiler {
 		if (rtp.equalsIgnoreCase("var") || rtp.equalsIgnoreCase("String")) rtp = "Line";
 		String nxt = rtp == "" ? "" : rtp.substring(0, 1).toUpperCase() 
 			+ rtp.replace(rtp.substring(0, 1), "");
-		return attachTo + udef + "_java_util_Scanner_nativeInterface.next" 
+		return attachTo + udef + "_Scanner_nativeInterface.next" 
 			+ nxt + "();";
 	}
 	
-	private String parseMethodFunction(String udef, List<String> method) {
+	private List<String> parseMethodFunction(String udef, List<String> method) {
 		String header = method.get(0);
 		header = header.replace(instruc[19] + " ", "");
 		String type = "void";
@@ -525,26 +607,29 @@ public class Compiler {
 			finalHeader += header.split("\\s+")[i] + (i >= header.split("\\s+").length - 1 ? "" : " ");
 		finalHeader += methodBody;
 		//s.append(header);
-		this.out(finalHeader);
 		List<String> actualBody = method.subList(1, method.size() - 1);
-		StringBuilder func = new StringBuilder();
+		Node func = new Node();
 		final String finalType = type;
 		actualBody.forEach(a -> {
 			String instr = a;
 			instr = instr.replace("	", "");		
 			String node[] = instr.split("\\s+");	
-			this.parse(node, instr, func, udef);
+			this.parse(true, node, instr, func, udef);
 			if (node[0].strip().equalsIgnoreCase(instruc[20]) && 
 				!finalType.strip().equalsIgnoreCase("void")) {
-				func.append(instr.replace(instruc[20] + " ", "return ") + ";");
+				func.appendIgnore(instr.replace(instruc[20] + " ", "return ") + ";");
 			}
 			if (instr.toCharArray()[0] == '{'
 				|| instr.toCharArray()[instr.toCharArray().length - 1] == '{') 
-				func.append("{");
+				func.appendIgnore("{");
 			if (instr.toCharArray()[0] == '}') 
-				func.append("}");
+				func.appendIgnore("}");
 		});
-		return finalHeader + func.toString() + "}";
+		List<String> funcBuilder = new ArrayList<>();
+		funcBuilder.add(finalHeader);
+		funcBuilder.addAll(func.queue);
+		funcBuilder.add("}");
+		return funcBuilder;
 	}
 	
 	private String[] importLibraries(String libname) {
@@ -578,9 +663,9 @@ public class Compiler {
 		}
 		StringBuilder appender = new StringBuilder();
 		libInternal.forEach(lib -> appender.append(lib));
-		StringBuilder importAppender = new StringBuilder();
+		Node importAppender = new Node();
 		libImports.forEach(lib -> importAppender.append("import " + lib + ";"));
-		return new String[] { importAppender.toString(), appender.toString() };
+		return new String[] { importAppender.build().toString(), appender.toString() };
 	}
 	
 	static int random(int min, int max) {
@@ -616,28 +701,28 @@ public class Compiler {
 		this.out(true, "Dang bien dich ma nguon...");
 		var t = this.pgrn + ".java";
 		File f = new File(fold, t);
-		this.out(f.toString());
 		if (!f.exists()) {
 			f.createNewFile();
 			try (OutputStreamWriter writer =
-		             new OutputStreamWriter(new FileOutputStream(fold.toString() + File.separator + t), StandardCharsets.UTF_8)) {
+					new OutputStreamWriter(new FileOutputStream(fold.toString() + File.separator + t), StandardCharsets.UTF_8)) {
 				writer.write(this.compiled);
 				writer.close();
 			} catch (Exception e) {
 				throw e;
 			}
-			int o1 = this.runProcess("javac " + f.toString(), false);
+			int o1 = this.runProcess("javac " + f.toString(), false, true);
 			if (o1 != 0) {
 				this.out(true, "[!] Khong thanh cong trong viec bien dich ma nguon! Hay kiem tra lai code cua ban!");
 				return null;
 			}
 			this.out("Thanh cong tao file Jar!");
 			this.out("Dang build file JAR...");
+			// TODO
 			new File(fold.toString() + File.separator + t).delete();
 			StringBuilder classes = new StringBuilder();
 			for (File fl : fold.listFiles()) {
 				if (fl.getName().contains(".class") && fl.getName().contains(this.pgrn))
-				classes.append(fl.getName() + " ");
+					classes.append(fl.getName() + " ");
 			}
 			this.out("Dang tao MANIFEST cho JAR...");
 			int o = this.runProcessWithDir(fold, "jar cvfe original$_" + this.pgrn.toLowerCase() + ".jar " + this.pgrn + " " + classes);
@@ -662,19 +747,34 @@ public class Compiler {
 		if (n < 0) return s;
 		return s.substring(n);
 	}
+
 	void printLines(String cmd, InputStream ins) throws Exception {
 		String line = null;
 		BufferedReader in = new BufferedReader(
 			new InputStreamReader(ins)
 		);
 		while ((line = in.readLine()) != null) {
-			this.out(cmd + line);
+			this.out(true, cmd + line);
 		}
 	}
-	int runProcess(String command, boolean print) throws Exception {
+	int runProcess(String command, boolean print, boolean isCompiler) throws Exception {
 		Process pro = Runtime.getRuntime().exec(command);
 		if (print) this.printLines("[NI] ", pro.getInputStream());
 		pro.waitFor();
+		if (isCompiler && pro.exitValue() != 0) {
+			BufferedReader in = new BufferedReader(
+				new InputStreamReader(pro.getErrorStream())
+			);
+			String error = in.readLine();
+			int a = Main.OS.equals(Main.OSType.WINDOWS) ? 1 : 0;
+			int ocl = Integer.parseInt(error.split(":")[1 + a]);
+			System.err.println(new CompilerException(
+				Node.mapper.get(Node.tracker.get(ocl)),
+				error.split("error")[1].substring(2, 3).toUpperCase()
+					+ error.split("error")[1].substring(3).toLowerCase()
+			).getMessage());
+		}
+		
 		return pro.exitValue();
 	}
 	int runProcessWithDir(File dir, String command) throws Exception {
@@ -683,4 +783,53 @@ public class Compiler {
 		pro.waitFor();
 		return pro.exitValue();
 	}
+	public static class WrappedInstruction {
+		public int line;
+		public String content;
+		public String fileName;
+		
+		public WrappedInstruction(String fileName, int line, String content) {
+			this.line = line;
+			this.content = content;
+			this.fileName = fileName;
+		}
+	}
+	public static enum BuiltInLang {
+		VN(Compiler.instruc_vi, "VIETNAMESE"),
+		EN(Compiler.instruc_en, "ENGLISH");
+
+		public String[] syntax;
+		public String fullName;
+		BuiltInLang(String[] type, String fullName) {
+			this.syntax = type;
+			this.fullName = fullName;
+		}
+	}
+	public static class Language {
+		public String[] synt;
+
+		public Language(File f) throws IOException, CompilerException {
+			if (!f.getName().contains(".vl")) throw new CompilerException("Cannot load Language file");
+			String[] lan = Compiler.instruc_en;
+			String[] str = FileLoader.bufferReader(f.getPath());
+			int j = 0;
+			for (int i = 0 ; i < str.length; i++) {
+				if (str[i].isEmpty()) continue;
+				if (str[i].startsWith("#") || str[i].startsWith("//") || str[i].startsWith(";")) continue;
+				if (str[i].contains("#")) {
+					str[i] = str[i].replace(str[i].split("\\#")[1], "");
+					str[i] = str[i].replace("#", "").replace(" ", "");
+				}
+				if (j < lan.length - 1) {
+					lan[j] = str[i].replace(" ", "");
+					j++;
+				}
+			}
+			this.synt = lan;
+		}
+
+		public Language(BuiltInLang lang) {
+			this.synt = lang.syntax;
+		}
+  	}
 }
